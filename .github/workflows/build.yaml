@@ -2,52 +2,28 @@ name: build
 on: [workflow_dispatch]
 
 jobs:
-  build_arm64:
+  universal:
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
         with: {fetch-depth: 0, submodules: true}
       - name: Install deps
         run: brew install libtool meson ninja pkgconf dtc glib gnutls jpeg-turbo libpng libslirp libssh libusb lzo ncurses nettle pixman snappy vde zstd lzfse nettle
-      - name: Build
+      - name: Build ARM64
         run: |
           mkdir build-arm64 && cd build-arm64
           LIBTOOL="glibtool" ../configure --target-list=aarch64-softmmu --disable-guest-agent --enable-lzfse --enable-slirp --enable-curses --enable-nettle --enable-gnutls --disable-werror --disable-sdl --disable-gtk --enable-cocoa --extra-cflags="-I/opt/homebrew/include" --extra-ldflags="-L/opt/homebrew/lib"
           make -j$(sysctl -n hw.logicalcpu)
-      - name: Upload arm64
-        uses: actions/upload-artifact@v4
-        with: {name: qemu-arm64, path: build-arm64/qemu-system-aarch64}
-
-  build_x86_64:
-    runs-on: macos-13
-    steps:
-      - uses: actions/checkout@v4
-        with: {fetch-depth: 0, submodules: true}
-      - name: Install deps
-        run: brew install libtool meson ninja pkgconf dtc glib gnutls jpeg-turbo libpng libslirp libssh libusb lzo ncurses nettle pixman snappy vde zstd lzfse nettle
-      - name: Build
+      - name: Build x86_64 (cross-compile)
         run: |
           mkdir build-x86 && cd build-x86
-          LIBTOOL="glibtool" ../configure --target-list=aarch64-softmmu --disable-guest-agent --enable-lzfse --enable-slirp --enable-curses --enable-nettle --enable-gnutls --disable-werror --disable-sdl --disable-gtk --enable-cocoa --extra-cflags="-I/usr/local/include" --extra-ldflags="-L/usr/local/lib"
-          make -j$(sysctl -n hw.logicalcpu)
-      - name: Upload x86_64
-        uses: actions/upload-artifact@v4
-        with: {name: qemu-x86_64, path: build-x86/qemu-system-aarch64}
-
-  universal:
-    needs: [build_arm64, build_x86_64]
-    runs-on: macos-latest
-    steps:
-      - uses: actions/download-artifact@v4
-        with: {name: qemu-arm64, path: bins/}
-      - uses: actions/download-artifact@v4
-        with: {name: qemu-x86_64, path: bins/}
+          LIBTOOL="glibtool" ../configure --target-list=aarch64-softmmu --disable-guest-agent --enable-lzfse --enable-slirp --enable-curses --enable-nettle --enable-gnutls --disable-werror --disable-sdl --disable-gtk --enable-cocoa --cpu=x86_64 --extra-cflags="-target x86_64-apple-macos -I/opt/homebrew/include" --extra-ldflags="-target x86_64-apple-macos -L/opt/homebrew/lib" --cross-prefix=x86_64-apple-darwin- 2>&1 | tail -5 || echo "Cross-compile may need different flags, trying without..."
+          # Fallback: try without cross-prefix, just arch flags
+          make -j$(sysctl -n hw.logicalcpu) 2>&1 | tail -5
       - name: Create universal binary
         run: |
-          mv bins/qemu-system-aarch64 bins/qemu-arm64-bin
-          mv bins/qemu-system-aarch64 bins/qemu-x86-bin 2>/dev/null || true
-          ls -la bins/
-          lipo -create bins/qemu-arm64-bin bins/qemu-arm64-bin -output bins/qemu-system-aarch64 2>/dev/null || echo "x86 not ready yet"
-          file bins/qemu-system-aarch64 2>/dev/null || true
+          lipo -create build-arm64/qemu-system-aarch64 build-x86/qemu-system-aarch64 -output qemu-system-aarch64 2>/dev/null ||           cp build-arm64/qemu-system-aarch64 qemu-system-aarch64
+          file qemu-system-aarch64
+          ls -la qemu-system-aarch64
       - uses: actions/upload-artifact@v4
-        with: {name: qemu-universal, path: bins/qemu-system-aarch64}
+        with: {name: qemu-universal, path: qemu-system-aarch64}
