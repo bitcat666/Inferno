@@ -13,5 +13,9 @@ jobs:
           mkdir build && cd build
           LIBTOOL="glibtool" ../configure --target-list=aarch64-softmmu,x86_64-softmmu --disable-guest-agent --enable-lzfse --enable-slirp --enable-curses --enable-libssh --enable-virtfs --enable-zstd --extra-cflags=-DNCURSES_WIDECHAR=1 --disable-sdl --disable-gtk --enable-cocoa --enable-lzfse --enable-nettle --enable-gnutls --disable-werror --extra-cflags="-I/opt/homebrew/include" --extra-ldflags="-L/opt/homebrew/lib"
           make -j$(sysctl -n hw.logicalcpu)
+          echo "=== Built binaries ==="
+          find build -name "qemu-system-*" -type f
       - uses: actions/upload-artifact@v4
         with: {name: inferno-arm64, path: build/qemu-system-aarch64}
+      - uses: actions/upload-artifact@v4
+        with: {name: inferno-all, path: build/}
