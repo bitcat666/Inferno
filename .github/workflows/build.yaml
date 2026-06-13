@@ -1,8 +1,8 @@
 name: build
 on: [workflow_dispatch]
 jobs:
-  build:
-    runs-on: macos-latest
+  build_macos:
+    runs-on: macos-15
     steps:
       - uses: actions/checkout@v4
         with: {fetch-depth: 0, submodules: true}
@@ -11,8 +11,7 @@ jobs:
       - name: Build
         run: |
           mkdir build && cd build
-          LIBTOOL="glibtool" ../configure --target-list=aarch64-softmmu --disable-guest-agent --enable-lzfse --enable-slirp --enable-curses --enable-nettle --enable-gnutls --disable-werror --disable-sdl --disable-gtk --enable-cocoa --extra-cflags="-I/opt/homebrew/include" --extra-ldflags="-L/opt/homebrew/lib"
+          LIBTOOL="glibtool" ../configure --target-list=aarch64-softmmu,x86_64-softmmu --disable-guest-agent --enable-lzfse --enable-slirp --enable-curses --enable-libssh --enable-virtfs --enable-zstd --extra-cflags=-DNCURSES_WIDECHAR=1 --disable-sdl --disable-gtk --enable-cocoa --enable-lzfse --enable-nettle --enable-gnutls --disable-werror --extra-cflags="-I/opt/homebrew/include" --extra-ldflags="-L/opt/homebrew/lib"
           make -j$(sysctl -n hw.logicalcpu)
-          ls -la qemu-system-aarch64
       - uses: actions/upload-artifact@v4
         with: {name: inferno-arm64, path: build/qemu-system-aarch64}
