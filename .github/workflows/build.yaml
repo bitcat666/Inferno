@@ -2,9 +2,9 @@ name: build
 on: [workflow_dispatch]
 
 jobs:
-  build_macos_x86_64:
-    name: macOS Build (Intel)
-    runs-on: macos-13
+  build_macos:
+    name: macOS Build
+    runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
         with:
@@ -15,10 +15,10 @@ jobs:
       - name: Build
         run: |
           mkdir build && cd build
-          LIBTOOL="glibtool" ../configure --target-list=aarch64-softmmu --disable-guest-agent --enable-lzfse --enable-slirp --enable-curses --enable-nettle --enable-gnutls --disable-werror --disable-sdl --disable-gtk --enable-cocoa --extra-cflags="-I/usr/local/include" --extra-ldflags="-L/usr/local/lib"
+          LIBTOOL="glibtool" ../configure --target-list=aarch64-softmmu --disable-guest-agent --enable-lzfse --enable-slirp --enable-curses --enable-nettle --enable-gnutls --disable-werror --disable-sdl --disable-gtk --enable-cocoa --extra-cflags="-I/opt/homebrew/include" --extra-ldflags="-L/opt/homebrew/lib"
           make -j$(sysctl -n hw.logicalcpu)
       - name: Upload binary
         uses: actions/upload-artifact@v4
         with:
-          name: qemu-inferno-x86_64
+          name: qemu-inferno-arm64
           path: build/qemu-system-aarch64
