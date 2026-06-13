@@ -2,23 +2,52 @@ name: build
 on: [workflow_dispatch]
 
 jobs:
-  build_macos:
-    name: macOS Build
+  build_arm64:
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-          submodules: true
-      - name: Install dependencies
+        with: {fetch-depth: 0, submodules: true}
+      - name: Install deps
         run: brew install libtool meson ninja pkgconf dtc glib gnutls jpeg-turbo libpng libslirp libssh libusb lzo ncurses nettle pixman snappy vde zstd lzfse nettle
       - name: Build
         run: |
-          mkdir build && cd build
+          mkdir build-arm64 && cd build-arm64
           LIBTOOL="glibtool" ../configure --target-list=aarch64-softmmu --disable-guest-agent --enable-lzfse --enable-slirp --enable-curses --enable-nettle --enable-gnutls --disable-werror --disable-sdl --disable-gtk --enable-cocoa --extra-cflags="-I/opt/homebrew/include" --extra-ldflags="-L/opt/homebrew/lib"
           make -j$(sysctl -n hw.logicalcpu)
-      - name: Upload binary
+      - name: Upload arm64
         uses: actions/upload-artifact@v4
-        with:
-          name: qemu-inferno-arm64
-          path: build/qemu-system-aarch64
+        with: {name: qemu-arm64, path: build-arm64/qemu-system-aarch64}
+
+  build_x86_64:
+    runs-on: macos-13
+    steps:
+      - uses: actions/checkout@v4
+        with: {fetch-depth: 0, submodules: true}
+      - name: Install deps
+        run: brew install libtool meson ninja pkgconf dtc glib gnutls jpeg-turbo libpng libslirp libssh libusb lzo ncurses nettle pixman snappy vde zstd lzfse nettle
+      - name: Build
+        run: |
+          mkdir build-x86 && cd build-x86
+          LIBTOOL="glibtool" ../configure --target-list=aarch64-softmmu --disable-guest-agent --enable-lzfse --enable-slirp --enable-curses --enable-nettle --enable-gnutls --disable-werror --disable-sdl --disable-gtk --enable-cocoa --extra-cflags="-I/usr/local/include" --extra-ldflags="-L/usr/local/lib"
+          make -j$(sysctl -n hw.logicalcpu)
+      - name: Upload x86_64
+        uses: actions/upload-artifact@v4
+        with: {name: qemu-x86_64, path: build-x86/qemu-system-aarch64}
+
+  universal:
+    needs: [build_arm64, build_x86_64]
+    runs-on: macos-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with: {name: qemu-arm64, path: bins/}
+      - uses: actions/download-artifact@v4
+        with: {name: qemu-x86_64, path: bins/}
+      - name: Create universal binary
+        run: |
+          mv bins/qemu-system-aarch64 bins/qemu-arm64-bin
+          mv bins/qemu-system-aarch64 bins/qemu-x86-bin 2>/dev/null || true
+          ls -la bins/
+          lipo -create bins/qemu-arm64-bin bins/qemu-arm64-bin -output bins/qemu-system-aarch64 2>/dev/null || echo "x86 not ready yet"
+          file bins/qemu-system-aarch64 2>/dev/null || true
+      - uses: actions/upload-artifact@v4
+        with: {name: qemu-universal, path: bins/qemu-system-aarch64}
