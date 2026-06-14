@@ -6,13 +6,24 @@ on:
 
 jobs:
   build:
-    runs-on: macos-13
+    runs-on: macos-15
     steps:
       - uses: actions/checkout@v4
-      - run: brew install ninja pkg-config glib pixman
-      - run: mkdir build && cd build && ../configure --target-list=aarch64-softmmu 2>&1 | tail -15
-      - run: cd build && make -j$(sysctl -n hw.ncpu) 2>&1 | tail -30
-      - run: ls -lh build/qemu-system-aarch64 && file build/qemu-system-aarch64
+
+      - name: Install x86_64 deps
+        run: arch -x86_64 brew install ninja pkg-config glib pixman
+
+      - name: Configure
+        run: |
+          mkdir -p build && cd build
+          arch -x86_64 ../configure --target-list=aarch64-softmmu 2>&1 | tail -15
+
+      - name: Build
+        run: arch -x86_64 make -C build -j$(sysctl -n hw.ncpu) 2>&1 | tail -30
+
+      - name: Verify
+        run: ls -lh build/qemu-system-aarch64 && file build/qemu-system-aarch64
+
       - uses: actions/upload-artifact@v4
         with:
           name: qemu-m1-x86_64
