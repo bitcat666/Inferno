@@ -465,7 +465,6 @@ static void m1_dfu_class_init(ObjectClass *klass, const void *data)
     dc->realize = m1_dfu_realize;
     device_class_set_legacy_reset(dc, m1_dfu_reset);
     dc->vmsd = &vmstate_m1_dfu;
-    device_class_set_props(dc, m1_dfu_properties);
     dc->desc = "Apple M1 USB DFU Controller";
 }
 
