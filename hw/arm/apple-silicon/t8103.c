@@ -1092,6 +1092,27 @@ static void t8103_pmgr_setup(AppleT8103MachineState *t8103)
     static const uint32_t t8103_voltage_states8_sram[] = { 0 };
     static const uint32_t t8103_voltage_states9_sram[] = { 0 };
 
+    /* M1 PMGR bridge settings */
+    static const uint32_t t8103_bridge_settings0[] = { 0 };
+    static const uint32_t t8103_bridge_settings1[] = { 0 };
+    static const uint32_t t8103_bridge_settings2[] = { 0 };
+    static const uint32_t t8103_bridge_settings3[] = { 0 };
+    static const uint32_t t8103_bridge_settings4[] = { 0 };
+    static const uint32_t t8103_bridge_settings5[] = { 0 };
+    static const uint32_t t8103_bridge_settings6[] = { 0 };
+    static const uint32_t t8103_bridge_settings7[] = { 0 };
+    static const uint32_t t8103_bridge_settings8[] = { 0 };
+    static const uint32_t t8103_bridge_settings12[] = { 0 };
+    static const uint32_t t8103_bridge_settings13[] = { 0 };
+    static const uint32_t t8103_bridge_settings14[] = { 0 };
+    static const uint32_t t8103_bridge_settings15[] = { 0 };
+    static const uint32_t t8103_bridge_settings16[] = { 0 };
+    static const uint32_t t8103_bridge_settings17[] = { 0 };
+
+    /* M1 clock frequencies */
+    static const uint32_t t8103_clock_frequencies[] = { 0 };
+    static const uint32_t t8103_clock_frequencies_nclk[] = { 0 };
+
     prop = apple_dt_get_prop(child, "reg");
     assert_nonnull(prop);
 
