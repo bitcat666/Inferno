@@ -10,16 +10,29 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Setup x86_64 Homebrew
+        run: |
+          if [ ! -f /usr/local/bin/brew ]; then
+            arch -x86_64 /bin/bash -c \
+              "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)" \
+              < /dev/null
+          fi
+
       - name: Install x86_64 deps
-        run: arch -x86_64 brew install ninja pkg-config glib pixman
+        run: |
+          /usr/local/bin/brew install ninja pkg-config glib pixman meson
 
       - name: Configure
         run: |
+          export PATH="/usr/local/bin:$PATH"
+          export PKG_CONFIG_PATH="/usr/local/lib/pkgconfig:/usr/local/share/pkgconfig"
           mkdir -p build && cd build
-          arch -x86_64 ../configure --target-list=aarch64-softmmu 2>&1 | tail -15
+          arch -x86_64 ../configure --target-list=aarch64-softmmu
 
       - name: Build
-        run: arch -x86_64 make -C build -j$(sysctl -n hw.ncpu) 2>&1 | tail -30
+        run: |
+          export PATH="/usr/local/bin:$PATH"
+          arch -x86_64 make -C build -j$(sysctl -n hw.ncpu)
 
       - name: Verify
         run: ls -lh build/qemu-system-aarch64 && file build/qemu-system-aarch64
