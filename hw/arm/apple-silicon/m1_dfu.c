@@ -29,6 +29,9 @@
 #include "qemu/osdep.h"
 #include "qemu/log.h"
 #include "qemu/module.h"
+#include "hw/arm/apple-silicon/m1_dfu.h"
+#include "hw/qdev-properties.h"
+#include "hw/resettable.h"
 #include "hw/sysbus.h"
 #include "hw/usb.h"
 #include "hw/arm/apple-silicon/t8103.h"
@@ -424,19 +427,12 @@ static void m1_dfu_realize(DeviceState *dev, Error **errp)
              s->cpid, s->bdid, s->ecid);
 }
 
-static void m1_dfu_reset(DeviceState *dev)
-{
-    M1DFUState *s = M1_DFU(dev);
-    m1_dfu_reset_state(s);
-}
-
 /* ── Properties ─────────────────────────────────────────── */
 
 static Property m1_dfu_properties[] = {
     DEFINE_PROP_UINT32("cpid", M1DFUState, cpid, 0x8103),
     DEFINE_PROP_UINT32("bdid", M1DFUState, bdid, 0x22),
     DEFINE_PROP_UINT64("ecid", M1DFUState, ecid, 0x00000001A2B3C4D5ULL),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 /* ── VMState ────────────────────────────────────────────── */
@@ -457,11 +453,22 @@ static const VMStateDescription vmstate_m1_dfu = {
 
 /* ── Type Info ──────────────────────────────────────────── */
 
-static void m1_dfu_class_init(ObjectClass *klass, void *data)
+static void m1_dfu_reset_hold(Object *obj, ResetType type)
+{
+    M1DFUState *s = M1_DFU(obj);
+    m1_dfu_reset_state(s);
+}
+
+/* ── Type Info ──────────────────────────────────────────── */
+
+static void m1_dfu_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
+    ResettableClass *rc = RESETTABLE_CLASS(klass);
+
     dc->realize = m1_dfu_realize;
-    dc->reset = m1_dfu_reset;
+    resettable_class_set_parent_phases(rc, NULL, m1_dfu_reset_hold, NULL,
+                                        &dc->parent_phases);
     dc->vmsd = &vmstate_m1_dfu;
     device_class_set_props(dc, m1_dfu_properties);
     dc->desc = "Apple M1 USB DFU Controller";
