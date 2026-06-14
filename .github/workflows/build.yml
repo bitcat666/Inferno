@@ -5,7 +5,7 @@ on:
   workflow_dispatch:
 
 jobs:
-  build:
+  x86_64:
     runs-on: macos-15
     steps:
       - uses: actions/checkout@v4
@@ -22,7 +22,6 @@ jobs:
 
       - name: Install x86_64 deps
         run: |
-          # Remove stale symlinks that conflict with brew's python linking
           rm -f /usr/local/bin/python3 /usr/local/bin/python3.14 \
                 /usr/local/bin/pip3 /usr/local/bin/pip3.14 \
                 /usr/local/bin/pydoc3 /usr/local/bin/pydoc3.14 \
@@ -48,4 +47,30 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: qemu-m1-x86_64
+          path: build/qemu-system-aarch64
+
+  arm64:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+
+      - name: Install ARM deps
+        run: brew install ninja pkg-config glib pixman meson libtasn1 libpng lzfse nettle
+
+      - name: Configure
+        run: |
+          mkdir -p build && cd build
+          ../configure --target-list=aarch64-softmmu
+
+      - name: Build
+        run: make -C build -j$(sysctl -n hw.ncpu)
+
+      - name: Verify
+        run: ls -lh build/qemu-system-aarch64 && file build/qemu-system-aarch64
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qemu-m1-arm64
           path: build/qemu-system-aarch64
