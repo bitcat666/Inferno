@@ -20,6 +20,12 @@ jobs:
 
       - name: Install x86_64 deps
         run: |
+          # Remove stale symlinks that conflict with brew's python linking
+          rm -f /usr/local/bin/python3 /usr/local/bin/python3.14 \
+                /usr/local/bin/pip3 /usr/local/bin/pip3.14 \
+                /usr/local/bin/pydoc3 /usr/local/bin/pydoc3.14 \
+                /usr/local/bin/idle3 /usr/local/bin/idle3.14 \
+                /usr/local/bin/python3-config /usr/local/bin/python3.14-config
           /usr/local/bin/brew install ninja pkg-config glib pixman meson
 
       - name: Configure
