@@ -58,7 +58,7 @@ jobs:
           submodules: true
 
       - name: Install ARM deps
-        run: brew install ninja pkg-config glib pixman meson libtasn1 libpng lzfse nettle
+        run: brew install ninja pkg-config glib pixman meson libtasn1 libpng lzfse nettle gmp
 
       - name: Configure
         run: |
