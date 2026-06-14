@@ -61,8 +61,11 @@ jobs:
 
       - name: Configure
         run: |
+          export PKG_CONFIG_PATH="/opt/homebrew/lib/pkgconfig:/opt/homebrew/share/pkgconfig"
           mkdir -p build && cd build
-          ../configure --target-list=aarch64-softmmu
+          ../configure --target-list=aarch64-softmmu \
+            --extra-cflags="-I/opt/homebrew/include" \
+            --extra-ldflags="-L/opt/homebrew/lib"
 
       - name: Build
         run: make -C build -j$(sysctl -n hw.ncpu)
