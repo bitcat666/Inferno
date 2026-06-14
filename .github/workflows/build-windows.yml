@@ -47,15 +47,13 @@ jobs:
 
       - name: Configure
         run: |
-          # Fix Makefile colon check for Windows drive letters
-          sed -i 's/ifneq.*words.*CURDIR.*/ifneq (0,1)/' Makefile
           mkdir -p build && cd build
           ../configure --target-list=aarch64-softmmu --disable-werror
 
       - name: Build
         run: |
           export PATH="/mingw64/bin:$PATH"
-          mingw32-make -C build -j$(nproc)
+          ninja -C build
 
       - name: Verify
         run: ls -lh build/qemu-system-aarch64.exe && file build/qemu-system-aarch64.exe
