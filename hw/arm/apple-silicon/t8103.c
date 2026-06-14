@@ -1077,6 +1077,21 @@ static void t8103_pmgr_setup(AppleT8103MachineState *t8103)
     child = apple_dt_get_node(child, "pmgr");
     assert_nonnull(child);
 
+    /* M1 PMGR voltage-frequency tables */
+    static const uint32_t t8103_voltage_states0[] = { 0 };
+    static const uint32_t t8103_voltage_states1[] = { 0 };
+    static const uint32_t t8103_voltage_states2[] = { 0 };
+    static const uint32_t t8103_voltage_states5[] = { 0 };
+    static const uint32_t t8103_voltage_states8[] = { 0 };
+    static const uint32_t t8103_voltage_states9[] = { 0 };
+    static const uint32_t t8103_voltage_states10[] = { 0 };
+    static const uint32_t t8103_voltage_states11[] = { 0 };
+    static const uint32_t t8103_voltage_states1_sram[] = { 0 };
+    static const uint32_t t8103_voltage_states2_sram[] = { 0 };
+    static const uint32_t t8103_voltage_states5_sram[] = { 0 };
+    static const uint32_t t8103_voltage_states8_sram[] = { 0 };
+    static const uint32_t t8103_voltage_states9_sram[] = { 0 };
+
     prop = apple_dt_get_prop(child, "reg");
     assert_nonnull(prop);
 
