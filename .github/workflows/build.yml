@@ -75,14 +75,35 @@ jobs:
       - name: Bundle dylibs
         run: |
           BIN="build/qemu-system-aarch64-unsigned"
-          # Find and copy needed brew dylibs
-          for lib in $(otool -L "$BIN" | grep /opt/homebrew | awk '{print $1}'); do
-            cp "$lib" build/
+          # Recursively find and copy ALL brew dylibs
+          processed=""
+          while true; do
+            new=""
+            # Check binary + already copied dylibs
+            for f in "$BIN" build/*.dylib build/*.so 2>/dev/null; do
+              [ -f "$f" ] || continue
+              for lib in $(otool -L "$f" 2>/dev/null | grep /opt/homebrew | awk '{print $1}'); do
+                name=$(basename "$lib")
+                if [ ! -f "build/$name" ] && ! echo "$processed" | grep -q "$name"; then
+                  cp "$lib" "build/$name" 2>/dev/null && new="$new $name"
+                fi
+              done
+            done
+            [ -z "$new" ] && break
+            processed="$processed $new"
           done
-          # Fix install names
-          for lib in $(otool -L "$BIN" | grep /opt/homebrew | awk '{print $1}'); do
-            name=$(basename "$lib")
-            install_name_tool -change "$lib" "@executable_path/$name" "$BIN"
+          # Fix install names recursively
+          for f in "$BIN" build/*.dylib 2>/dev/null; do
+            [ -f "$f" ] || continue
+            for lib in $(otool -L "$f" 2>/dev/null | grep /opt/homebrew | awk '{print $1}'); do
+              name=$(basename "$lib")
+              [ -f "build/$name" ] && install_name_tool -change "$lib" "@executable_path/$name" "$f" 2>/dev/null
+            done
+            # Also fix any remaining absolute paths to bundled libs
+            for ref in $(otool -L "$f" 2>/dev/null | grep 'build/' | awk '{print $1}'); do
+              name=$(basename "$ref")
+              [ -f "build/$name" ] && install_name_tool -change "$ref" "@executable_path/$name" "$f" 2>/dev/null
+            done
           done
 
       - name: Verify
