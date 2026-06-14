@@ -20,6 +20,7 @@
 
 #include "qemu/osdep.h"
 #include "hw/arm/apple-silicon/a13.h"
+#include "hw/arm/apple-silicon/m1.h"
 #include "hw/arm/apple-silicon/a13_gxf.h"
 #include "hw/arm/apple-silicon/dt.h"
 #include "hw/irq.h"

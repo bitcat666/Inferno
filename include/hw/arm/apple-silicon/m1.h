@@ -1,11 +1,21 @@
 /*
- * Apple M1 CPU (T8103).
+ * Apple M1 CPU.
  *
- * M1 = 4× Firestorm (P-cores) + 4× Icestorm (E-cores) = 8 cores, 2 clusters.
- * Based on the A13 CPU implementation.
+ * Copyright (c) 2023-2026 Visual Ehrmanntraut (VisualEhrmanntraut).
+ * Copyright (c) 2023-2026 Christian Inci (chris-pcguy).
  *
  * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Affero General Public License.
+ * it under the terms of the GNU Affero General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
 #ifndef HW_ARM_APPLE_SILICON_M1_H
@@ -18,7 +28,7 @@
 #include "system/memory.h"
 #include "cpu.h"
 
-#define M1_MAX_CPU 8
+#define M1_MAX_CPU 4
 #define M1_MAX_CLUSTER 2
 
 #define TYPE_APPLE_M1 "apple-m1-cpu"
@@ -30,17 +40,23 @@ OBJECT_DECLARE_SIMPLE_TYPE(AppleM1Cluster, APPLE_M1_CLUSTER)
 #define M1_CPREG_VAR_NAME(name) cpreg_##name
 #define M1_CPREG_VAR_DEF(name) uint64_t M1_CPREG_VAR_NAME(name)
 
-#define kDeferredIPITimerDefault 64000
+/* kDeferredIPITimerDefault defined in a13.h */
 
 typedef struct AppleM1Class {
+    /*< private >*/
     ARMCPUClass base_class;
+
+    /*< public >*/
     DeviceRealize parent_realize;
     DeviceUnrealize parent_unrealize;
     ResettablePhases parent_phases;
 } AppleM1Class;
 
 typedef struct AppleM1State {
+    /*< private >*/
     ARMCPU parent_obj;
+
+    /*< public >*/
     MemoryRegion memory;
     MemoryRegion sysmem;
     uint32_t cpu_id;
@@ -85,6 +101,7 @@ typedef struct AppleM1State {
     M1_CPREG_VAR_DEF(ARM64_REG_ACC_CFG);
     M1_CPREG_VAR_DEF(S3_5_c15_c10_1);
     M1_CPREG_VAR_DEF(SYS_ACC_PWR_DN_SAVE);
+    /* uncore */
     M1_CPREG_VAR_DEF(UPMPCM);
     M1_CPREG_VAR_DEF(UPMCR0);
     M1_CPREG_VAR_DEF(UPMSR);
@@ -108,8 +125,8 @@ typedef struct AppleM1Cluster {
 } AppleM1Cluster;
 
 AppleM1State *apple_m1_create(const char *name, uint32_t cpu_id,
-                              uint32_t phys_id, uint32_t cluster_id,
-                              uint16_t cluster_type);
+                               uint32_t phys_id, uint32_t cluster_id,
+                               uint16_t cluster_type);
 AppleM1State *apple_m1_from_node(AppleDTNode *node);
 bool apple_m1_is_asleep(const AppleM1State *acpu);
 bool apple_m1_is_off(const AppleM1State *acpu);
