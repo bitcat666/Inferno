@@ -6,7 +6,7 @@ on:
 
 jobs:
   build:
-    runs-on: macos-13  # x86_64 Intel runner
+    runs-on: macos-13  # only x86_64 macOS runner
     steps:
       - uses: actions/checkout@v4
 
