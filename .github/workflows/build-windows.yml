@@ -74,7 +74,7 @@ jobs:
           ../configure --target-list=aarch64-softmmu --disable-werror \
             --disable-guest-agent \
             --extra-cflags="-I/mingw64/include" \
-            --extra-ldflags="-L/mingw64/lib -llzfse"
+             --extra-ldflags="-L/mingw64/lib -llzfse -lnettle -lhogweed -lgmp"
 
       - name: Build
         run: |
