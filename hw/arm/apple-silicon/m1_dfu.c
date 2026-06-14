@@ -430,7 +430,6 @@ static Property m1_dfu_properties[] = {
     DEFINE_PROP_UINT32("cpid", M1DFUState, cpid, 0x8103),
     DEFINE_PROP_UINT32("bdid", M1DFUState, bdid, 0x22),
     DEFINE_PROP_UINT64("ecid", M1DFUState, ecid, 0x00000001A2B3C4D5ULL),
-    { /* end of list */ },
 };
 
 /* ── VMState ────────────────────────────────────────────── */
