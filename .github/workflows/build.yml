@@ -6,7 +6,6 @@ on:
 
 jobs:
   x86_64:
-    if: false  # disabled for now
     runs-on: macos-15
     steps:
       - uses: actions/checkout@v4
@@ -28,14 +27,16 @@ jobs:
                 /usr/local/bin/pydoc3 /usr/local/bin/pydoc3.14 \
                 /usr/local/bin/idle3 /usr/local/bin/idle3.14 \
                 /usr/local/bin/python3-config /usr/local/bin/python3.14-config
-          /usr/local/bin/brew install ninja pkg-config glib pixman meson libtasn1 libpng lzfse nettle
+          /usr/local/bin/brew install ninja pkg-config glib pixman meson libtasn1 libpng lzfse nettle gmp
 
       - name: Configure
         run: |
           export PATH="/usr/local/bin:$PATH"
           export PKG_CONFIG_PATH="/usr/local/lib/pkgconfig:/usr/local/share/pkgconfig"
           mkdir -p build && cd build
-          arch -x86_64 ../configure --target-list=aarch64-softmmu
+          arch -x86_64 ../configure --target-list=aarch64-softmmu \
+            --extra-cflags="-I/usr/local/include" \
+            --extra-ldflags="-L/usr/local/lib -lnettle -lhogweed -lgmp"
 
       - name: Build
         run: |
@@ -43,12 +44,12 @@ jobs:
           arch -x86_64 make -C build -j$(sysctl -n hw.ncpu)
 
       - name: Verify
-        run: ls -lh build/qemu-system-aarch64 && file build/qemu-system-aarch64
+        run: ls -lh build/qemu-system-aarch64-unsigned && file build/qemu-system-aarch64-unsigned
 
       - uses: actions/upload-artifact@v4
         with:
           name: qemu-m1-x86_64
-          path: build/qemu-system-aarch64
+          path: build/qemu-system-aarch64-unsigned
 
   arm64:
     runs-on: macos-15
