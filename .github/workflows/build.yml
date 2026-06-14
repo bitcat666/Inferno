@@ -35,6 +35,8 @@ jobs:
           export PKG_CONFIG_PATH="/usr/local/lib/pkgconfig:/usr/local/share/pkgconfig"
           mkdir -p build && cd build
           arch -x86_64 ../configure --target-list=aarch64-softmmu \
+            --disable-tools \
+            --enable-hvf \
             --extra-cflags="-I/usr/local/include" \
             --extra-ldflags="-L/usr/local/lib -lnettle -lhogweed -lgmp"
 
@@ -66,6 +68,7 @@ jobs:
           export PKG_CONFIG_PATH="/opt/homebrew/lib/pkgconfig:/opt/homebrew/share/pkgconfig"
           mkdir -p build && cd build
           ../configure --target-list=aarch64-softmmu \
+            --enable-hvf \
             --extra-cflags="-I/opt/homebrew/include" \
             --extra-ldflags="-L/opt/homebrew/lib -lnettle -lhogweed -lgmp"
 
