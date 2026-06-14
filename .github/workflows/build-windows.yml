@@ -26,6 +26,7 @@ jobs:
             mingw-w64-x86_64-pkg-config
             mingw-w64-x86_64-ninja
             mingw-w64-x86_64-meson
+            mingw-w64-x86_64-cmake
             mingw-w64-x86_64-libtasn1
             mingw-w64-x86_64-libpng
             mingw-w64-x86_64-nettle
@@ -45,10 +46,22 @@ jobs:
             python
             git
 
+      - name: Build lzfse
+        run: |
+          git clone --depth 1 https://github.com/lzfse/lzfse.git /tmp/lzfse
+          cd /tmp/lzfse
+          mkdir build && cd build
+          cmake .. -G "Ninja" -DCMAKE_INSTALL_PREFIX=/mingw64
+          ninja
+          cp liblzfse.a /mingw64/lib/
+          cp ../src/lzfse.h /mingw64/include/
+
       - name: Configure
         run: |
           mkdir -p build && cd build
-          ../configure --target-list=aarch64-softmmu --disable-werror
+          ../configure --target-list=aarch64-softmmu --disable-werror \
+            --extra-cflags="-I/mingw64/include" \
+            --extra-ldflags="-L/mingw64/lib -llzfse"
 
       - name: Build
         run: |
