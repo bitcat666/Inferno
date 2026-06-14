@@ -26,7 +26,6 @@ jobs:
             mingw-w64-x86_64-pkg-config
             mingw-w64-x86_64-ninja
             mingw-w64-x86_64-meson
-            mingw-w64-x86_64-cmake
             mingw-w64-x86_64-libtasn1
             mingw-w64-x86_64-libpng
             mingw-w64-x86_64-nettle
@@ -46,15 +45,28 @@ jobs:
             python
             git
 
-      - name: Build lzfse
+      - name: Build lzfse stub
         run: |
-          git clone --depth 1 https://github.com/lzfse/lzfse.git /tmp/lzfse
-          cd /tmp/lzfse
-          mkdir build && cd build
-          cmake .. -G "Ninja" -DCMAKE_INSTALL_PREFIX=/mingw64
-          ninja
-          cp liblzfse.a /mingw64/lib/
-          cp ../src/lzfse.h /mingw64/include/
+          # lzfse is Apple-only; create a stub for Windows
+          cat > /tmp/lzfse.h << 'EOF'
+          #ifndef LZFSE_H
+          #define LZFSE_H
+          #include <stddef.h>
+          #include <stdint.h>
+          #define LZFSE_ENCODE_LZVN (1)
+          #define LZFSE_ENCODE_LZFSE (2)
+          size_t lzfse_encode_scratch_size(void);
+          size_t lzfse_decode_scratch_size(void);
+          size_t lzfse_encode_buffer(uint8_t *__restrict dst, size_t dst_size,
+              const uint8_t *__restrict src, size_t src_size, void *__restrict scratch);
+          size_t lzfse_decode_buffer(uint8_t *__restrict dst, size_t dst_size,
+              const uint8_t *__restrict src, size_t src_size, void *__restrict scratch);
+          #endif
+          EOF
+          cp /tmp/lzfse.h /mingw64/include/lzfse.h
+          # Create stub .a with empty symbol
+          echo 'void __lzfse_stub(void){}' | gcc -c -x c - -o /tmp/lzfse_stub.o
+          ar rcs /mingw64/lib/liblzfse.a /tmp/lzfse_stub.o
 
       - name: Configure
         run: |
