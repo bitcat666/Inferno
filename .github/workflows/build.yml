@@ -5,7 +5,7 @@ on:
   workflow_dispatch:
 
 jobs:
-  build:
+  x86_64:
     runs-on: macos-15
     steps:
       - uses: actions/checkout@v4
@@ -22,20 +22,21 @@ jobs:
 
       - name: Install x86_64 deps
         run: |
-          # Remove stale symlinks that conflict with brew's python linking
           rm -f /usr/local/bin/python3 /usr/local/bin/python3.14 \
                 /usr/local/bin/pip3 /usr/local/bin/pip3.14 \
                 /usr/local/bin/pydoc3 /usr/local/bin/pydoc3.14 \
                 /usr/local/bin/idle3 /usr/local/bin/idle3.14 \
                 /usr/local/bin/python3-config /usr/local/bin/python3.14-config
-          /usr/local/bin/brew install ninja pkg-config glib pixman meson libtasn1 libpng lzfse nettle
+          /usr/local/bin/brew install ninja pkg-config glib pixman meson libtasn1 libpng lzfse nettle gmp
 
       - name: Configure
         run: |
           export PATH="/usr/local/bin:$PATH"
           export PKG_CONFIG_PATH="/usr/local/lib/pkgconfig:/usr/local/share/pkgconfig"
           mkdir -p build && cd build
-          arch -x86_64 ../configure --target-list=aarch64-softmmu
+          arch -x86_64 ../configure --target-list=aarch64-softmmu \
+            --extra-cflags="-I/usr/local/include" \
+            --extra-ldflags="-L/usr/local/lib -lnettle -lhogweed -lgmp"
 
       - name: Build
         run: |
@@ -43,9 +44,70 @@ jobs:
           arch -x86_64 make -C build -j$(sysctl -n hw.ncpu)
 
       - name: Verify
-        run: ls -lh build/qemu-system-aarch64 && file build/qemu-system-aarch64
+        run: ls -lh build/qemu-system-aarch64-unsigned && file build/qemu-system-aarch64-unsigned
 
       - uses: actions/upload-artifact@v4
         with:
           name: qemu-m1-x86_64
-          path: build/qemu-system-aarch64
+          path: build/qemu-system-aarch64-unsigned
+
+  arm64:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+
+      - name: Install ARM deps
+        run: brew install ninja pkg-config glib pixman meson libtasn1 libpng lzfse nettle gmp
+
+      - name: Configure
+        run: |
+          export PKG_CONFIG_PATH="/opt/homebrew/lib/pkgconfig:/opt/homebrew/share/pkgconfig"
+          mkdir -p build && cd build
+          ../configure --target-list=aarch64-softmmu \
+            --extra-cflags="-I/opt/homebrew/include" \
+            --extra-ldflags="-L/opt/homebrew/lib -lnettle -lhogweed -lgmp"
+
+      - name: Build
+        run: make -C build -j$(sysctl -n hw.ncpu)
+
+      - name: Bundle dylibs
+        run: |
+          set -e
+          BIN="build/qemu-system-aarch64-unsigned"
+          shopt -s nullglob
+          # Recursively find and copy ALL brew dylibs
+          processed=""
+          while true; do
+            new=""
+            for f in "$BIN" build/*.dylib; do
+              [ -f "$f" ] || continue
+              for lib in $(otool -L "$f" 2>/dev/null | grep /opt/homebrew | awk '{print $1}'); do
+                name=$(basename "$lib")
+                if [ ! -f "build/$name" ] && ! echo "$processed" | grep -qF "$name"; then
+                  cp "$lib" "build/$name" && new="$new $name"
+                fi
+              done
+            done
+            [ -z "$new" ] && break
+            processed="$processed $new"
+          done
+          # Fix install names on binary and all dylibs
+          for f in "$BIN" build/*.dylib; do
+            [ -f "$f" ] || continue
+            for lib in $(otool -L "$f" | grep /opt/homebrew | awk '{print $1}'); do
+              name=$(basename "$lib")
+              [ -f "build/$name" ] && install_name_tool -change "$lib" "@executable_path/$name" "$f"
+            done
+          done
+
+      - name: Verify
+        run: ls -lh build/qemu-system-aarch64-unsigned && file build/qemu-system-aarch64-unsigned
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qemu-m1-arm64
+          path: |
+            build/qemu-system-aarch64-unsigned
+            build/*.dylib
