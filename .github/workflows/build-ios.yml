@@ -1,0 +1,75 @@
+name: Build Inferno M1 (iOS)
+
+on:
+  push:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-15
+    env:
+      SDK: iphoneos
+      ARCH: arm64
+      TARGET: aarch64-apple-ios15.0
+      SYSROOT: /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS.sdk
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+
+      - name: Build glib (static, iOS)
+        run: |
+          if [ ! -d deps ]; then
+            mkdir deps
+            curl -sL https://download.gnome.org/sources/glib/2.80/glib-2.80.0.tar.xz | tar xJ
+            cd glib-2.80.0
+            meson setup _build \
+              --cross-file <(cat <<EOF
+          [binaries]
+          c = 'clang'
+          [host_machine]
+          system = 'ios'
+          cpu_family = 'aarch64'
+          cpu = 'aarch64'
+          endian = 'little'
+          EOF
+          ) \
+              -Dlibmount=disabled \
+              -Dselinux=disabled \
+              --prefix=$(pwd)/../deps/glib
+            meson compile -C _build
+            meson install -C _build
+          fi
+          echo "DEPS_PREFIX=$(pwd)/deps" >> $GITHUB_ENV
+
+      - name: Configure QEMU (iOS)
+        run: |
+          export CFLAGS="-arch arm64 -isysroot $SYSROOT -mios-version-min=15.0"
+          export LDFLAGS="-arch arm64 -isysroot $SYSROOT -mios-version-min=15.0"
+          mkdir -p build && cd build
+          ../configure \
+            --cross-prefix="" \
+            --cpu=aarch64 \
+            --target-list=aarch64-softmmu \
+            --static \
+            --disable-cocoa \
+            --disable-curses \
+            --disable-vnc \
+            --disable-guest-agent \
+            --disable-tools \
+            --disable-system \
+            --disable-user \
+            --disable-docs \
+            --enable-system \
+            2>&1 | tail -30
+
+      - name: Build
+        run: make -C build -j$(sysctl -n hw.ncpu) 2>&1 | tail -30
+
+      - name: Verify
+        run: ls -lh build/qemu-system-aarch64 && file build/qemu-system-aarch64 || ls -lh build/
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qemu-m1-ios
+          path: build/qemu-system-aarch64*
