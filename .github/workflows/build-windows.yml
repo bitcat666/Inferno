@@ -1,0 +1,61 @@
+name: Build Inferno M1 (Windows)
+
+on:
+  push:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: msys2 {0}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+
+      - uses: msys2/setup-msys2@v2
+        with:
+          msystem: MINGW64
+          update: true
+          install: >-
+            mingw-w64-x86_64-toolchain
+            mingw-w64-x86_64-glib2
+            mingw-w64-x86_64-pixman
+            mingw-w64-x86_64-pkg-config
+            mingw-w64-x86_64-ninja
+            mingw-w64-x86_64-meson
+            mingw-w64-x86_64-libtasn1
+            mingw-w64-x86_64-libpng
+            mingw-w64-x86_64-nettle
+            mingw-w64-x86_64-libslirp
+            mingw-w64-x86_64-curl
+            mingw-w64-x86_64-gnutls
+            mingw-w64-x86_64-gtk3
+            mingw-w64-x86_64-SDL2
+            mingw-w64-x86_64-libgcrypt
+            mingw-w64-x86_64-libusb
+            mingw-w64-x86_64-libssh
+            mingw-w64-x86_64-zstd
+            mingw-w64-x86_64-lzo2
+            mingw-w64-x86_64-snappy
+            mingw-w64-x86_64-ncurses
+            python
+            git
+
+      - name: Configure
+        run: |
+          mkdir -p build && cd build
+          ../configure --target-list=aarch64-softmmu --disable-werror
+
+      - name: Build
+        run: make -C build -j$(nproc)
+
+      - name: Verify
+        run: ls -lh build/qemu-system-aarch64.exe && file build/qemu-system-aarch64.exe
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qemu-m1-windows-x86_64
+          path: build/qemu-system-aarch64.exe
