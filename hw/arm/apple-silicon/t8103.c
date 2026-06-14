@@ -2821,6 +2821,7 @@ static void t8103_init(MachineState *machine)
     t8103->build_version = build_version;
 
     switch (BUILD_VERSION_MAJOR(build_version)) {
+    /* iOS */
     case 13:
     case 14:
     case 15:
@@ -2832,8 +2833,22 @@ static void t8103_init(MachineState *machine)
     case 26:
         t8103->sio_protocol = 10;
         break;
+    /* macOS */
+    case 20: /* macOS 11 Big Sur */
+    case 21: /* macOS 12 Monterey */
+    case 22: /* macOS 13 Ventura */
+    case 23: /* macOS 14 Sonoma */
+    case 24: /* macOS 15 Sequoia */
+    case 25: /* macOS 26 */
+    case 27: /* macOS 27 */
+        t8103->sio_protocol = 10;
+        break;
     default:
-        assert_not_reached();
+        /* Unknown version - try with protocol 10 as safe default */
+        warn_report("Unknown build version major %u, defaulting to SIO protocol 10",
+                    BUILD_VERSION_MAJOR(build_version));
+        t8103->sio_protocol = 10;
+        break;
     }
 
     if (t8103->securerom_filename == NULL) {
@@ -2902,8 +2917,8 @@ static void t8103_init(MachineState *machine)
                            t8103->regulatory_model);
 
     child = apple_dt_get_node(t8103->device_tree, "chosen");
-    apple_dt_set_prop_u32(child, "chip-id", 0x8030);
-    t8103->board_id = 0x4;
+    apple_dt_set_prop_u32(child, "chip-id", 0x8103);
+    t8103->board_id = 0x22;
     apple_dt_set_prop_u32(child, "board-id", t8103->board_id);
     apple_dt_set_prop_u32(child, "certificate-production-status", 1);
     apple_dt_set_prop_u32(child, "certificate-security-mode", 1);
@@ -2920,7 +2935,7 @@ static void t8103_init(MachineState *machine)
     apple_dt_set_prop_str(child, "graphics-featureset-fallbacks", "");
     apple_dt_set_prop_str(child, "artwork-display-gamut", "sRGB");
     // TODO: PMP
-    apple_dt_set_prop_str(t8103->device_tree, "target-type", "n104sim");
+    apple_dt_set_prop_str(t8103->device_tree, "target-type", "j274sim");
 
     t8103_cpu_setup(t8103);
     t8103_create_aic(t8103);
