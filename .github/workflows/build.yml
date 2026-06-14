@@ -1,0 +1,35 @@
+name: Build Inferno M1 (Apple Silicon)
+
+on:
+  push:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-15  # ARM64 runner
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install build deps
+        run: |
+          brew install ninja pkg-config glib pixman
+
+      - name: Configure
+        run: |
+          mkdir build && cd build
+          ../configure --target-list=aarch64-softmmu --enable-cocoa 2>&1 | tail -20
+
+      - name: Compile
+        run: |
+          cd build
+          make -j$(sysctl -n hw.ncpu) 2>&1 | tail -30
+          ls -lh qemu-system-aarch64
+          file qemu-system-aarch64
+
+      - name: Upload M1 QEMU
+        uses: actions/upload-artifact@v4
+        with:
+          name: qemu-m1-arm64
+          path: |
+            build/qemu-system-aarch64
+            build/pc-bios/

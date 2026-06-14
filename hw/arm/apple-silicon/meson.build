@@ -4,7 +4,9 @@ arm_common_ss.add(when: 'CONFIG_APPLE_DART', if_true: files('dart.c'),
 arm_common_ss.add(when: 'CONFIG_APPLE_SART', if_true: files('sart.c'))
 arm_common_ss.add(when: 'CONFIG_APPLE_SOC', if_true: files(
     'a13.c',
+    'm1.c',
     'a13_gxf.c',
+    'm1_gxf.c',
     'a9.c',
     'boot.c',
     'dt.c',
@@ -17,4 +19,5 @@ arm_common_ss.add(when: 'CONFIG_APPLE_SOC', if_true: files(
     'lm-backlight.c',
     's8000.c',
     't8030.c',
+    't8103.c',
 ))
