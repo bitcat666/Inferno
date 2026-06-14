@@ -47,6 +47,8 @@ jobs:
 
       - name: Configure
         run: |
+          # Fix Makefile colon check for Windows drive letters
+          sed -i 's/ifneq.*words.*CURDIR.*/ifneq (0,1)/' Makefile
           mkdir -p build && cd build
           ../configure --target-list=aarch64-softmmu --disable-werror
 
