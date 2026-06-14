@@ -20,4 +20,5 @@ arm_common_ss.add(when: 'CONFIG_APPLE_SOC', if_true: files(
     's8000.c',
     't8030.c',
     't8103.c',
+    'm1_dfu.c',
 ))
