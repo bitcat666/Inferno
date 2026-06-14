@@ -64,8 +64,18 @@ jobs:
           #endif
           EOF
           cp /tmp/lzfse.h /mingw64/include/lzfse.h
-          # Create stub .a with empty symbol
-          echo 'void __lzfse_stub(void){}' | gcc -c -x c - -o /tmp/lzfse_stub.o
+          # Create stub with real function symbols
+          cat > /tmp/lzfse_stub.c << 'EOF'
+          #include <stddef.h>
+          #include <stdint.h>
+          size_t lzfse_encode_scratch_size(void) { return 0; }
+          size_t lzfse_decode_scratch_size(void) { return 0; }
+          size_t lzfse_encode_buffer(uint8_t *dst, size_t dst_size,
+              const uint8_t *src, size_t src_size, void *scratch) { return 0; }
+          size_t lzfse_decode_buffer(uint8_t *dst, size_t dst_size,
+              const uint8_t *src, size_t src_size, void *scratch) { return 0; }
+          EOF
+          gcc -c /tmp/lzfse_stub.c -o /tmp/lzfse_stub.o
           ar rcs /mingw64/lib/liblzfse.a /tmp/lzfse_stub.o
 
       - name: Configure
@@ -73,6 +83,7 @@ jobs:
           mkdir -p build && cd build
           ../configure --target-list=aarch64-softmmu --disable-werror \
             --disable-guest-agent \
+            --enable-whpx \
             --extra-cflags="-I/mingw64/include" \
              --extra-ldflags="-L/mingw64/lib -llzfse -lnettle -lhogweed -lgmp"
 
