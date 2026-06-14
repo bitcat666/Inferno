@@ -6,17 +6,20 @@ on:
 
 jobs:
   build:
-    runs-on: macos-13  # only x86_64 macOS runner
+    runs-on: macos-15  # ARM64 runner, fast
+    env:
+      CFLAGS: -arch x86_64
+      LDFLAGS: -arch x86_64
     steps:
       - uses: actions/checkout@v4
 
       - name: Install build deps
         run: brew install ninja pkg-config glib pixman
 
-      - name: Configure
+      - name: Configure (cross-compile to x86_64)
         run: |
           mkdir build && cd build
-          ../configure --target-list=aarch64-softmmu 2>&1 | tail -20
+          ../configure --target-list=aarch64-softmmu --cpu=x86_64 2>&1 | tail -20
 
       - name: Compile
         run: |
