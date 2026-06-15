@@ -45,13 +45,46 @@ jobs:
           export PATH="/usr/local/bin:$PATH"
           arch -x86_64 make -C build -j$(sysctl -n hw.ncpu)
 
+      - name: Bundle dylibs
+        run: |
+          set -e
+          export PATH="/usr/local/bin:$PATH"
+          BIN="build/qemu-system-aarch64-unsigned"
+          shopt -s nullglob
+          # Recursively find and copy ALL x86_64 brew dylibs
+          processed=""
+          while true; do
+            new=""
+            for f in "$BIN" build/*.dylib; do
+              [ -f "$f" ] || continue
+              for lib in $(otool -L "$f" 2>/dev/null | grep /usr/local | awk '{print $1}'); do
+                name=$(basename "$lib")
+                if [ ! -f "build/$name" ] && ! echo "$processed" | grep -qF "$name"; then
+                  cp "$lib" "build/$name" && new="$new $name"
+                fi
+              done
+            done
+            [ -z "$new" ] && break
+            processed="$processed $new"
+          done
+          # Fix install names on binary and all dylibs
+          for f in "$BIN" build/*.dylib; do
+            [ -f "$f" ] || continue
+            for lib in $(otool -L "$f" | grep /usr/local | awk '{print $1}'); do
+              name=$(basename "$lib")
+              [ -f "build/$name" ] && install_name_tool -change "$lib" "@executable_path/$name" "$f"
+            done
+          done
+
       - name: Verify
         run: ls -lh build/qemu-system-aarch64-unsigned && file build/qemu-system-aarch64-unsigned
 
       - uses: actions/upload-artifact@v4
         with:
           name: qemu-m1-x86_64
-          path: build/qemu-system-aarch64-unsigned
+          path: |
+            build/qemu-system-aarch64-unsigned
+            build/*.dylib
 
   arm64:
     runs-on: macos-15
