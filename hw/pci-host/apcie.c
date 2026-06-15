@@ -1714,7 +1714,7 @@ SysBusDevice *apple_pcie_from_node(AppleDTNode *node, uint32_t chip_id)
         port_entries = 2;
         root_mappings = 4;
         port_mappings = 1;
-    } else if (chip_id == 0x8020 || chip_id == 0x8030) {
+    } else if (chip_id == 0x8020 || chip_id == 0x8030 || chip_id == 0x8103) {
         DPRINTF("%s: compatible check: use T8030(/T8020) mode\n", __func__);
 
         common_index = 1;
@@ -1784,7 +1784,7 @@ SysBusDevice *apple_pcie_from_node(AppleDTNode *node, uint32_t chip_id)
         sysbus_init_mmio(sbd, &port->port_cfg);
         sysbus_mmio_map(sbd, mmio_index++,
                         reg[(port_index + (i * port_entries) + 0) * 2 + 0]);
-        if (chip_id == 0x8020 || chip_id == 0x8030) {
+        if (chip_id == 0x8020 || chip_id == 0x8030 || chip_id == 0x8103) {
             snprintf(temp_name, sizeof(temp_name), "port%u_config_ltssm_debug",
                      i);
             memory_region_init_io(
@@ -1820,7 +1820,7 @@ SysBusDevice *apple_pcie_from_node(AppleDTNode *node, uint32_t chip_id)
         }
     }
 
-    if (chip_id == 0x8015 || chip_id == 0x8020 || chip_id == 0x8030) {
+    if (chip_id == 0x8015 || chip_id == 0x8020 || chip_id == 0x8030 || chip_id == 0x8103) {
         pci_set_power(PCI_DEVICE(s->ports[0]), false);
         pci_set_power(PCI_DEVICE(s->ports[1]), false);
         // pci_set_power(PCI_DEVICE(s->ports[2]), false);
