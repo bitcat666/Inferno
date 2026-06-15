@@ -80,6 +80,7 @@ jobs:
             -Dglib_assert=false \
             -Dglib_checks=false \
             -Dintrospection=disabled \
+            -Diconv=libc \
             --pkg-config-path="${FFI_PREFIX}/lib/pkgconfig"
           ninja -C _build -j$(nproc) && ninja -C _build install
           echo "GLIB_PREFIX=$PWD/_install" >> $GITHUB_ENV
