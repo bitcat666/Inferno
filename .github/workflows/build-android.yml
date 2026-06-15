@@ -24,22 +24,41 @@ jobs:
       - name: Install build tools
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y -qq ninja-build python3-pip
+          sudo apt-get install -y -qq ninja-build python3-pip pkg-config
           pip3 install meson
 
-      - name: Build dependencies
+      - name: Build libffi (static)
         run: |
-          set -e
-          TARGET=aarch64-linux-android21
+          FFI_VER=3.4.6
+          curl -sLO "https://github.com/libffi/libffi/releases/download/v${FFI_VER}/libffi-${FFI_VER}.tar.gz"
+          tar xf libffi-${FFI_VER}.tar.gz
+          cd libffi-${FFI_VER}
+          ./configure \
+            --host=aarch64-linux-android \
+            --prefix=$PWD/_install \
+            --enable-static --disable-shared \
+            CC=aarch64-linux-android21-clang \
+            CXX=aarch64-linux-android21-clang++ \
+            AR=llvm-ar RANLIB=llvm-ranlib \
+            CFLAGS="-fPIC"
+          make -j$(nproc) && make install
+          echo "FFI_PREFIX=$PWD/_install" >> $GITHUB_ENV
+          cd ..
 
-          # Cross file for meson
-          cat > /tmp/cross.txt << 'MESON'
+      - name: Build glib (static)
+        run: |
+          GLIB_VER=2.80.4
+          curl -sLO "https://download.gnome.org/sources/glib/2.80/glib-${GLIB_VER}.tar.xz"
+          tar xf glib-${GLIB_VER}.tar.xz
+          cd glib-${GLIB_VER}
+
+          cat > cross.txt << 'MESON'
           [binaries]
           c = 'aarch64-linux-android21-clang'
           cpp = 'aarch64-linux-android21-clang++'
           ar = 'llvm-ar'
           strip = 'llvm-strip'
-          pkgconfig = 'pkg-config'
+          pkg-config = 'pkg-config'
           [host_machine]
           system = 'linux'
           cpu_family = 'aarch64'
@@ -47,38 +66,141 @@ jobs:
           endian = 'little'
           MESON
 
-          # glib
-          GLIB_VER=2.80.4
-          curl -sLO "https://download.gnome.org/sources/glib/2.80/glib-${GLIB_VER}.tar.xz"
-          tar xf glib-${GLIB_VER}.tar.xz
-          cd glib-${GLIB_VER}
-          meson setup _build --cross-file /tmp/cross.txt --prefix=$PWD/_install \
-            --default-library=static -Dlibelf=disabled -Dselinux=disabled \
-            -Dxattr=false -Dlibmount=disabled -Dnls=disabled -Dtests=false \
-            -Dglib_assert=false -Dglib_checks=false
+          export PKG_CONFIG_PATH="${FFI_PREFIX}/lib/pkgconfig"
+          meson setup _build --cross-file cross.txt --prefix=$PWD/_install \
+            --default-library=static \
+            -Dlibffi=external \
+            -Dlibelf=disabled \
+            -Dselinux=disabled \
+            -Dxattr=false \
+            -Dlibmount=disabled \
+            -Dnls=disabled \
+            -Dtests=false \
+            -Dglib_assert=false \
+            -Dglib_checks=false \
+            -Dintrospection=disabled \
+            -Dpcre2=internal \
+            --pkg-config-path="${FFI_PREFIX}/lib/pkgconfig"
           ninja -C _build -j$(nproc) && ninja -C _build install
           echo "GLIB_PREFIX=$PWD/_install" >> $GITHUB_ENV
           cd ..
 
-          # pixman
+      - name: Build pixman (static)
+        run: |
           PIXMAN_VER=0.44.2
           curl -sLO "https://www.cairographics.org/releases/pixman-${PIXMAN_VER}.tar.gz"
           tar xf pixman-${PIXMAN_VER}.tar.gz
           cd pixman-${PIXMAN_VER}
-          meson setup _build --cross-file /tmp/cross.txt --prefix=$PWD/_install \
+
+          cat > cross.txt << 'MESON'
+          [binaries]
+          c = 'aarch64-linux-android21-clang'
+          ar = 'llvm-ar'
+          strip = 'llvm-strip'
+          pkg-config = 'pkg-config'
+          [host_machine]
+          system = 'linux'
+          cpu_family = 'aarch64'
+          cpu = 'aarch64'
+          endian = 'little'
+          MESON
+
+          meson setup _build --cross-file cross.txt --prefix=$PWD/_install \
             --default-library=static -Dtests=disabled -Ddemos=disabled
           ninja -C _build -j$(nproc) && ninja -C _build install
           echo "PIXMAN_PREFIX=$PWD/_install" >> $GITHUB_ENV
           cd ..
 
-      - name: Configure and Build QEMU
-        env:
-          PKG_CONFIG_PATH: ""
+      - name: Build lzfse (static)
         run: |
-          # QEMU needs to find glib and pixman via pkg-config
-          export PKG_CONFIG_PATH="${GLIB_PREFIX}/lib/pkgconfig:${PIXMAN_PREFIX}/lib/pkgconfig"
-          export CFLAGS="-I${GLIB_PREFIX}/include -I${PIXMAN_PREFIX}/include"
-          export LDFLAGS="-L${GLIB_PREFIX}/lib -L${PIXMAN_PREFIX}/lib"
+          git clone --depth 1 https://github.com/lzfse/lzfse.git
+          cd lzfse/src
+          aarch64-linux-android21-clang -std=c99 -O2 -fPIC -c \
+            lzfse_decode.c lzfse_decode_base.c lzfse_encode.c \
+            lzfse_encode_base.c lzfse_fse.c lzvn_decode_base.c lzvn_encode_base.c
+          llvm-ar rcs liblzfse.a *.o
+          mkdir -p $PWD/../_install/lib $PWD/../_install/include
+          cp liblzfse.a $PWD/../_install/lib/
+          cp ../src/lzfse.h $PWD/../_install/include/
+          echo "LZFSE_PREFIX=$PWD/../_install" >> $GITHUB_ENV
+          cd ../..
+
+      - name: Build nettle+gmp (static)
+        run: |
+          # gmp first
+          GMP_VER=6.3.0
+          curl -sLO "https://gmplib.org/download/gmp/gmp-${GMP_VER}.tar.xz"
+          tar xf gmp-${GMP_VER}.tar.xz
+          cd gmp-${GMP_VER}
+          ./configure \
+            --host=aarch64-linux-android \
+            --prefix=$PWD/_install \
+            --enable-static --disable-shared \
+            CC=aarch64-linux-android21-clang \
+            CXX=aarch64-linux-android21-clang++ \
+            AR=llvm-ar RANLIB=llvm-ranlib \
+            CFLAGS="-fPIC" --disable-assembly
+          make -j$(nproc) && make install
+          echo "GMP_PREFIX=$PWD/_install" >> $GITHUB_ENV
+          cd ..
+
+          # nettle
+          NETTLE_VER=3.10
+          curl -sLO "https://ftp.gnu.org/gnu/nettle/nettle-${NETTLE_VER}.tar.gz"
+          tar xf nettle-${NETTLE_VER}.tar.gz
+          cd nettle-${NETTLE_VER}
+          ./configure \
+            --host=aarch64-linux-android \
+            --prefix=$PWD/_install \
+            --enable-static --disable-shared \
+            --disable-openssl --disable-documentation \
+            CC=aarch64-linux-android21-clang \
+            CXX=aarch64-linux-android21-clang++ \
+            AR=llvm-ar RANLIB=llvm-ranlib \
+            CFLAGS="-fPIC -I${GMP_PREFIX}/include" \
+            LDFLAGS="-L${GMP_PREFIX}/lib"
+          make -j$(nproc) && make install
+          echo "NETTLE_PREFIX=$PWD/_install" >> $GITHUB_ENV
+          cd ..
+
+      - name: Build libtasn1 + libpng (static)
+        run: |
+          # libtasn1
+          TASN1_VER=4.20.0
+          curl -sLO "https://ftp.gnu.org/gnu/libtasn1/libtasn1-${TASN1_VER}.tar.gz"
+          tar xf libtasn1-${TASN1_VER}.tar.gz
+          cd libtasn1-${TASN1_VER}
+          ./configure \
+            --host=aarch64-linux-android \
+            --prefix=$PWD/_install \
+            --enable-static --disable-shared \
+            CC=aarch64-linux-android21-clang \
+            AR=llvm-ar RANLIB=llvm-ranlib \
+            CFLAGS="-fPIC"
+          make -j$(nproc) && make install
+          echo "TASN1_PREFIX=$PWD/_install" >> $GITHUB_ENV
+          cd ..
+
+          # libpng
+          PNG_VER=1.6.44
+          curl -sLO "https://downloads.sourceforge.net/libpng/libpng-${PNG_VER}.tar.xz"
+          tar xf libpng-${PNG_VER}.tar.xz
+          cd libpng-${PNG_VER}
+          ./configure \
+            --host=aarch64-linux-android \
+            --prefix=$PWD/_install \
+            --enable-static --disable-shared \
+            CC=aarch64-linux-android21-clang \
+            AR=llvm-ar RANLIB=llvm-ranlib \
+            CPPFLAGS="-I${TASN1_PREFIX}/include" \
+            LDFLAGS="-L${TASN1_PREFIX}/lib"
+          make -j$(nproc) && make install
+          echo "PNG_PREFIX=$PWD/_install" >> $GITHUB_ENV
+          cd ..
+
+      - name: Configure and Build QEMU
+        run: |
+          export PKG_CONFIG_PATH="${GLIB_PREFIX}/lib/pkgconfig:${PIXMAN_PREFIX}/lib/pkgconfig:${TASN1_PREFIX}/lib/pkgconfig:${PNG_PREFIX}/lib/pkgconfig:${GMP_PREFIX}/lib/pkgconfig:${NETTLE_PREFIX}/lib/pkgconfig"
 
           mkdir -p build && cd build
           ../configure \
@@ -95,19 +217,20 @@ jobs:
             --disable-gtk \
             --disable-curses \
             --disable-vnc \
-            --enable-slirp=disabled \
+            --disable-slirp \
             --static \
-            --extra-cflags="-I${GLIB_PREFIX}/include/glib-2.0 -I${GLIB_PREFIX}/lib/glib-2.0/include -I${PIXMAN_PREFIX}/include" \
-            --extra-ldflags="-L${GLIB_PREFIX}/lib -L${PIXMAN_PREFIX}/lib"
+            --extra-cflags="-I${GLIB_PREFIX}/include/glib-2.0 -I${GLIB_PREFIX}/lib/glib-2.0/include -I${PIXMAN_PREFIX}/include -I${TASN1_PREFIX}/include -I${PNG_PREFIX}/include -I${GMP_PREFIX}/include -I${NETTLE_PREFIX}/include -I${LZFSE_PREFIX}/include -I${FFI_PREFIX}/include" \
+            --extra-ldflags="-L${GLIB_PREFIX}/lib -L${PIXMAN_PREFIX}/lib -L${TASN1_PREFIX}/lib -L${PNG_PREFIX}/lib -L${GMP_PREFIX}/lib -L${NETTLE_PREFIX}/lib -L${LZFSE_PREFIX}/lib -L${FFI_PREFIX}/lib"
 
           make -j$(nproc)
 
       - name: Package
         run: |
           mkdir -p artifact
-          cp build/qemu-system-aarch64 artifact/
-          file artifact/qemu-system-aarch64
-          ls -lh artifact/
+          cp build/qemu-system-aarch64 artifact/ 2>/dev/null && \
+            file artifact/qemu-system-aarch64 && \
+            ls -lh artifact/
+          find build -name "qemu-system-*" -type f 2>/dev/null | head -5
 
       - uses: actions/upload-artifact@v4
         with:
