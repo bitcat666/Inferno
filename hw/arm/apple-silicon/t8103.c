@@ -454,7 +454,10 @@ static void t8103_rtkit_mem_setup(AppleT8103MachineState *t8103,
     child = apple_dt_get_node(t8103->device_tree, "arm-io");
     assert_nonnull(child);
     child = apple_dt_get_node(child, name);
-    assert_nonnull(child);
+    if (child == NULL) {
+        /* Node may not exist in all device trees (e.g. macOS vs iOS) */
+        return;
+    }
     iop_nub = apple_dt_get_node(child, nub_name);
     assert_nonnull(iop_nub);
 
@@ -1265,7 +1268,10 @@ static void t8103_create_dart(AppleT8103MachineState *t8103, const char *name,
     assert_nonnull(child);
 
     child = apple_dt_get_node(child, name);
-    assert_nonnull(child);
+    if (child == NULL) {
+        /* Node may not exist in all device trees (e.g. macOS vs iOS) */
+        return;
+    }
 
     prop = apple_dt_get_prop(child, "vm-base");
     if (prop != NULL && ldl_le_p(prop->data) == 0) {
@@ -1441,7 +1447,10 @@ static void t8103_create_gpio(AppleT8103MachineState *t8103, const char *name)
     AppleDTNode *child = apple_dt_get_node(t8103->device_tree, "arm-io");
 
     child = apple_dt_get_node(child, name);
-    assert_nonnull(child);
+    if (child == NULL) {
+        /* Node may not exist in all device trees (e.g. macOS vs iOS) */
+        return;
+    }
     gpio = apple_gpio_from_node(child);
     assert_nonnull(gpio);
     object_property_add_child(OBJECT(t8103), name, OBJECT(gpio));
@@ -1537,7 +1546,10 @@ static void t8103_create_spi(AppleT8103MachineState *t8103, uint32_t port)
 
     snprintf(name, sizeof(name), "spi%u", port);
     child = apple_dt_get_node(child, name);
-    assert_nonnull(child);
+    if (child == NULL) {
+        /* Node may not exist in all device trees (e.g. macOS vs iOS) */
+        return;
+    }
 
     spi = apple_spi_from_node(child);
     assert_nonnull(spi);
@@ -1741,7 +1753,10 @@ static void t8103_create_spmi(AppleT8103MachineState *t8103, const char *name)
 
     assert_nonnull(child);
     child = apple_dt_get_node(child, name);
-    assert_nonnull(child);
+    if (child == NULL) {
+        /* Node may not exist in all device trees (e.g. macOS vs iOS) */
+        return;
+    }
 
     spmi = apple_spmi_from_node(child);
     assert_nonnull(spmi);
@@ -1783,7 +1798,10 @@ static void t8103_create_pmu(AppleT8103MachineState *t8103, const char *parent,
     assert_nonnull(spmi);
 
     child = apple_dt_get_node(child, name);
-    assert_nonnull(child);
+    if (child == NULL) {
+        /* Node may not exist in all device trees (e.g. macOS vs iOS) */
+        return;
+    }
 
     pmu = apple_spmi_pmu_from_node(child);
     assert_nonnull(pmu);
@@ -1817,7 +1835,10 @@ static void t8103_create_baseband_spmi(AppleT8103MachineState *t8103,
     assert_nonnull(spmi);
 
     child = apple_dt_get_node(child, name);
-    assert_nonnull(child);
+    if (child == NULL) {
+        /* Node may not exist in all device trees (e.g. macOS vs iOS) */
+        return;
+    }
 
     baseband = apple_spmi_baseband_create(child);
     assert_nonnull(baseband);
@@ -2611,7 +2632,10 @@ static void t8103_create_tempsensor(AppleT8103MachineState *t8103,
     child = apple_dt_get_node(t8103->device_tree, "arm-io");
     assert_nonnull(child);
     child = apple_dt_get_node(child, name);
-    assert_nonnull(child);
+    if (child == NULL) {
+        /* Node may not exist in all device trees (e.g. macOS vs iOS) */
+        return;
+    }
 
     apple_dt_set_prop_u32(child, "invokes-sochot", 0);
 
@@ -2647,7 +2671,10 @@ static void t8103_create_mtr_tempsensor(AppleT8103MachineState *t8103,
     child = apple_dt_get_node(t8103->device_tree, "arm-io");
     assert_nonnull(child);
     child = apple_dt_get_node(child, name);
-    assert_nonnull(child);
+    if (child == NULL) {
+        /* Node may not exist in all device trees (e.g. macOS vs iOS) */
+        return;
+    }
 
     apple_dt_set_prop_u32(child, "invokes-sochot", 0);
 
