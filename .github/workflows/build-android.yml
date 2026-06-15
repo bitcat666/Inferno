@@ -1,0 +1,136 @@
+name: Build Android (arm64-v8a)
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [m1-support-android]
+
+jobs:
+  android:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+
+      - name: Setup Android NDK
+        run: |
+          NDK_VER="r27c"
+          curl -sLO "https://dl.google.com/android/repository/android-ndk-${NDK_VER}-linux.zip"
+          unzip -q android-ndk-${NDK_VER}-linux.zip
+          echo "NDK=$PWD/android-ndk-${NDK_VER}" >> $GITHUB_ENV
+
+      - name: Install build tools
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq ninja-build python3-pip
+          pip3 install meson
+          # Put NDK cross-compilers in PATH
+          echo "$NDK/toolchains/llvm/prebuilt/linux-x86_64/bin" >> $GITHUB_PATH
+
+      - name: Build glib (static)
+        run: |
+          GLIB_VER=2.80.4
+          curl -sLO "https://download.gnome.org/sources/glib/2.80/glib-${GLIB_VER}.tar.xz"
+          tar xf glib-${GLIB_VER}.tar.xz
+          cd glib-${GLIB_VER}
+
+          meson setup _build \
+            --cross-file <(cat << 'MESON'
+          [binaries]
+          c = 'aarch64-linux-android21-clang'
+          ar = 'llvm-ar'
+          strip = 'llvm-strip'
+          [host_machine]
+          system = 'linux'
+          cpu_family = 'aarch64'
+          cpu = 'aarch64'
+          endian = 'little'
+          MESON
+          ) \
+            --prefix=$PWD/_install \
+            --default-library=static \
+            -Dlibelf=disabled \
+            -Dselinux=disabled \
+            -Dxattr=false \
+            -Dlibmount=disabled \
+            -Dnls=disabled \
+            -Dtests=false \
+            -Dglib_assert=false \
+            -Dglib_checks=false
+
+          ninja -C _build -j$(nproc)
+          ninja -C _build install
+          echo "GLIB=$PWD/_install" >> $GITHUB_ENV
+          cd ..
+
+      - name: Build pixman (static)
+        run: |
+          PIXMAN_VER=0.44.2
+          curl -sLO "https://www.cairographics.org/releases/pixman-${PIXMAN_VER}.tar.gz"
+          tar xf pixman-${PIXMAN_VER}.tar.gz
+          cd pixman-${PIXMAN_VER}
+
+          meson setup _build \
+            --cross-file <(cat << 'MESON'
+          [binaries]
+          c = 'aarch64-linux-android21-clang'
+          ar = 'llvm-ar'
+          strip = 'llvm-strip'
+          [host_machine]
+          system = 'linux'
+          cpu_family = 'aarch64'
+          cpu = 'aarch64'
+          endian = 'little'
+          MESON
+          ) \
+            --prefix=$PWD/_install \
+            --default-library=static \
+            -Dtests=disabled \
+            -Ddemos=disabled
+
+          ninja -C _build -j$(nproc)
+          ninja -C _build install
+          echo "PIXMAN=$PWD/_install" >> $GITHUB_ENV
+          cd ..
+
+      - name: Configure QEMU
+        run: |
+          export PKG_CONFIG_PATH="${GLIB}/lib/pkgconfig:${PIXMAN}/lib/pkgconfig"
+
+          # QEMU configure with NDK cross-compiler
+          # --cross-prefix adds the prefix to gcc/ld/etc
+          mkdir -p build && cd build
+          ../configure \
+            --cross-prefix=aarch64-linux-android21- \
+            --target-list=aarch64-softmmu \
+            --disable-tools \
+            --disable-system \
+            --disable-user \
+            --disable-guest-agent \
+            --disable-docs \
+            --disable-werror \
+            --enable-fdt=internal \
+            --enable-slirp=internal \
+            --disable-sdl \
+            --disable-gtk \
+            --disable-curses \
+            --disable-vnc \
+            --static \
+            --extra-cflags="-I${GLIB}/include/glib-2.0 -I${GLIB}/lib/glib-2.0/include -I${PIXMAN}/include" \
+            --extra-ldflags="-L${GLIB}/lib -L${PIXMAN}/lib"
+
+      - name: Build QEMU
+        run: make -C build -j$(nproc)
+
+      - name: Package
+        run: |
+          mkdir -p artifact
+          cp build/qemu-system-aarch64 artifact/
+          file artifact/qemu-system-aarch64
+          ls -lh artifact/
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qemu-m1-android-arm64
+          path: artifact/
