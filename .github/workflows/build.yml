@@ -36,7 +36,6 @@ jobs:
           mkdir -p build && cd build
           arch -x86_64 ../configure --target-list=aarch64-softmmu \
             --disable-tools \
-            --disable-curses \
             --enable-hvf \
             --extra-cflags="-I/usr/local/include" \
             --extra-ldflags="-L/usr/local/lib -lnettle -lhogweed -lgmp"
@@ -52,7 +51,6 @@ jobs:
           export PATH="/usr/local/bin:$PATH"
           BIN="build/qemu-system-aarch64-unsigned"
           shopt -s nullglob
-          # Recursively find and copy ALL x86_64 brew dylibs
           processed=""
           while true; do
             new=""
@@ -68,7 +66,6 @@ jobs:
             [ -z "$new" ] && break
             processed="$processed $new"
           done
-          # Fix install names on binary and all dylibs
           for f in "$BIN" build/*.dylib; do
             [ -f "$f" ] || continue
             for lib in $(otool -L "$f" | grep /usr/local | awk '{print $1}'); do
@@ -102,6 +99,7 @@ jobs:
           export PKG_CONFIG_PATH="/opt/homebrew/lib/pkgconfig:/opt/homebrew/share/pkgconfig"
           mkdir -p build && cd build
           ../configure --target-list=aarch64-softmmu \
+            --disable-tools \
             --enable-hvf \
             --extra-cflags="-I/opt/homebrew/include" \
             --extra-ldflags="-L/opt/homebrew/lib -lnettle -lhogweed -lgmp"
