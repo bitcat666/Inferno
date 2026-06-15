@@ -38,7 +38,7 @@ jobs:
             --disable-tools \
             --enable-hvf \
             --extra-cflags="-I/usr/local/include" \
-            --extra-ldflags="-L/usr/local/lib -lnettle -lhogweed -lgmp"
+            --extra-ldflags="-L/usr/local/lib -lnettle -lhogweed -lgmp -lcompression"
 
       - name: Build
         run: |
@@ -102,7 +102,7 @@ jobs:
             --disable-tools \
             --enable-hvf \
             --extra-cflags="-I/opt/homebrew/include" \
-            --extra-ldflags="-L/opt/homebrew/lib -lnettle -lhogweed -lgmp"
+            --extra-ldflags="-L/opt/homebrew/lib -lnettle -lhogweed -lgmp -lcompression"
 
       - name: Build
         run: make -C build -j$(sysctl -n hw.ncpu)
