@@ -73,6 +73,11 @@ jobs:
               [ -f "build/$name" ] && install_name_tool -change "$lib" "@executable_path/$name" "$f"
             done
           done
+          # Bundle system ncurses for older macOS compat
+          if [ -f /usr/lib/libncurses.6.dylib ]; then
+            cp /usr/lib/libncurses.6.dylib build/
+            install_name_tool -change /usr/lib/libncurses.5.4.dylib @executable_path/libncurses.6.dylib "$BIN"
+          fi
 
       - name: Verify
         run: ls -lh build/qemu-system-aarch64-unsigned && file build/qemu-system-aarch64-unsigned
