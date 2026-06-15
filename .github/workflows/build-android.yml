@@ -67,9 +67,10 @@ jobs:
           MESON
 
           export PKG_CONFIG_PATH="${FFI_PREFIX}/lib/pkgconfig"
+          export CFLAGS="-I${FFI_PREFIX}/include"
+          export LDFLAGS="-L${FFI_PREFIX}/lib"
           meson setup _build --cross-file cross.txt --prefix=$PWD/_install \
             --default-library=static \
-            -Dlibffi=external \
             -Dlibelf=disabled \
             -Dselinux=disabled \
             -Dxattr=false \
@@ -79,7 +80,6 @@ jobs:
             -Dglib_assert=false \
             -Dglib_checks=false \
             -Dintrospection=disabled \
-            -Dpcre2=internal \
             --pkg-config-path="${FFI_PREFIX}/lib/pkgconfig"
           ninja -C _build -j$(nproc) && ninja -C _build install
           echo "GLIB_PREFIX=$PWD/_install" >> $GITHUB_ENV
